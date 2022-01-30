@@ -1,5 +1,8 @@
 # obesity_ABM
-An agent-based model for obesity, based on real NHANES data. A WORK IN PROGRESS!
+
+NOTE: THIS IS A VERY MESSY WORK IN PROGRESS! CODE IS UGLY AND USE AT YOUR OWN RISK.
+
+An agent-based model for obesity, based on real NHANES data. 
 
 I tried to reverse-engineer the model described in the following paper:
 
