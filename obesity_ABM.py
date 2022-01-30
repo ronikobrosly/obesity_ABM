@@ -267,6 +267,9 @@ class MyAgent(Agent):
             edu = self.education,
             low_income = self.income
         )
+
+        self.obesity_prob = baseline_prob
+
         self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[baseline_prob, 1 - baseline_prob])
 
     def update(self):
@@ -292,20 +295,34 @@ class MyAgent(Agent):
         elif self.neighborhood == NEIGHBORHOOD.UPPER_MINORITY:
             update_prob *= 0.97
         elif self.neighborhood == NEIGHBORHOOD.LOWER_MAJORITY:
-            update_prob *= 1.12
+            update_prob *= 1.14
         elif self.neighborhood == NEIGHBORHOOD.LOWER_MINORITY:
-            update_prob *= 1.19
-
-        self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[update_prob, 1 - update_prob])
+            update_prob *= 1.22
 
         ### Determine if anyone connected to agent in network is obese, update prob accordingly
-        # connections = [i[1] for i in test_G.edges(self.graph_1_id)]
-        # for n in connections:
-        #     if obese:
-        #         pass
-        #     else:
-        #         pass
-              
+        G_1_neighbors = self.model.G.neighbors(self.graph_1_id)
+        G_2_neighbors = self.model.G_2.neighbors(self.graph_1_id)
+
+        obese_neighbors_1 = [
+            agent for agent in G_1_neighbors if self.model.G.nodes[agent]['obesity_status'] == OBESE.YES
+        ]
+
+        obese_neighbors_2 = [
+            agent for agent in G_2_neighbors if self.model.G.nodes[agent]['obesity_status'] == OBESE.YES
+        ]
+
+        if obese_neighbors_1 or obese_neighbors_1:
+            update_prob *= 1.1
+
+        self.obesity_prob = update_prob
+
+        # Make final determine about obesity in this particular time step
+        self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[update_prob, 1 - update_prob])
+
+        # Update the node in the two graphs to reflect new obesity status
+        nx.set_node_attributes(self.model.G, {self.graph_1_id:{'obesity_status': self.obesity_status}})
+        nx.set_node_attributes(self.model.G_2, {self.graph_1_id:{'obesity_status': self.obesity_status}})
+
     def step(self):
         self.update()
 
@@ -324,6 +341,8 @@ class NetworkInfectionModel(Model):
         self.running = True
 
         self.G = nx.empty_graph()
+
+        self.grid1 = NetworkGrid(self.G)
         
         ### Create agents and network #1 (Based on education and social class)
         agent_list = []
@@ -335,28 +354,26 @@ class NetworkInfectionModel(Model):
 
             # Add the first 2 nodes (0, 1) without any edges
             if i < 2:
-                agent = MyAgent(i, self)
-                agent.graph_1_id = i
-                self.G.add_node(i, ethnicity = agent.ethnicity, education = agent.education, income = agent.income)
-                agent_list.append(agent)
+                ag = MyAgent(i, self)
+                ag.graph_1_id = i
+                self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
+                agent_list.append(ag)
             
-
             # After adding the third node, force connections between nodes 1 and 2 to 0
             elif i == 2:
-                agent = MyAgent(i, self)
-                agent.graph_1_id = i
-                self.G.add_node(i, ethnicity = agent.ethnicity, education = agent.education, income = agent.income)
-                agent_list.append(agent)
+                ag = MyAgent(i, self)
+                ag.graph_1_id = i
+                self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
+                agent_list.append(ag)
                 self.G.add_edge(0,1)
                 self.G.add_edge(0,2)
 
-
             # For the first 15% of the new nodes, build a standard Barabási–Albert network, without regard to node attributes
             elif 2 < i < (self.num_nodes * 0.15):
-                agent = MyAgent(i, self)
-                agent.graph_1_id = i
-                self.G.add_node(i, ethnicity = agent.ethnicity, education = agent.education, income = agent.income)
-                agent_list.append(agent)
+                ag = MyAgent(i, self)
+                ag.graph_1_id = i
+                self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
+                agent_list.append(ag)
                 
                 curr_node_list = []
                 for key, value in dict(self.G.degree()).items():
@@ -367,17 +384,16 @@ class NetworkInfectionModel(Model):
                 for j in new_connections:
                     self.G.add_edge(i,j)
 
-
             # For the middle 50% of the new nodes, restricted to connecting with existing agents of similar ethnicity, 
             # with a probability of connecting to existing agents with the same ethnicity that is proportional 
             # to the number of connections that that agent already possessed
             elif (self.num_nodes * 0.15) <= i < (self.num_nodes * 0.75):
-                agent = MyAgent(i, self)
-                agent.graph_1_id = i
-                agent_list.append(agent)
+                ag = MyAgent(i, self)
+                ag.graph_1_id = i
+                agent_list.append(ag)
               
                 # Get list of similar nodes
-                similar_eth_node_list = [n for n,d in self.G.nodes().items() if d['ethnicity'] == agent.ethnicity]
+                similar_eth_node_list = [n for n,d in self.G.nodes().items() if d['ethnicity'] == ag.ethnicity]
                 
                 # Get list of these nodes by their number of connections
                 curr_node_list = []
@@ -386,21 +402,20 @@ class NetworkInfectionModel(Model):
 
                 new_connections = random.choices(curr_node_list, k = graph_m)
 
-                self.G.add_node(i, ethnicity = agent.ethnicity, education = agent.education, income = agent.income)
+                self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
                 for j in new_connections:
                     self.G.add_edge(i,j)
-                
 
             # For the last 25% of the new nodes, restricted to connecting with existing agents of similar ethnicity and social class 
             # with a probability of connecting to existing agents with the same ethnicity and social class that is proportional 
             # to the number of connections that that agent already possessed
             elif i >= (self.num_nodes * 0.75):
-                agent = MyAgent(i, self)
-                agent.graph_1_id = i
-                agent_list.append(agent)
+                ag = MyAgent(i, self)
+                ag.graph_1_id = i
+                agent_list.append(ag)
 
                 # Get list of similar nodes
-                similar_eth_soc_node_list = [n for n,d in self.G.nodes().items() if ((d['ethnicity'] == agent.ethnicity) & (d['income'] == agent.income))]
+                similar_eth_soc_node_list = [n for n,d in self.G.nodes().items() if ((d['ethnicity'] == ag.ethnicity) & (d['income'] == ag.income))]
 
                 # Get list of these nodes by their number of connections
                 curr_node_list = []
@@ -409,16 +424,17 @@ class NetworkInfectionModel(Model):
 
                 new_connections = random.choices(curr_node_list, k = graph_m)
 
-                self.G.add_node(i, ethnicity = agent.ethnicity, education = agent.education, income = agent.income)
+                self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
                 for j in new_connections:
                     self.G.add_edge(i,j)
 
-                
         ### Network #2 (Based on neighborhood)
         self.G_2 = nx.empty_graph()
 
-        for i, agent in enumerate(agent_list):
-            self.G_2.add_node(i, neighborhood = agent.neighborhood)
+        self.grid2 = NetworkGrid(self.G_2)
+
+        for i, ag in enumerate(agent_list):
+            self.G_2.add_node(i, neighborhood = ag.neighborhood)
 
         # Enumerate all possible node combos
         node_combos = tqdm([i for i in itertools.combinations(self.G_2.nodes(), 2)])
@@ -437,13 +453,14 @@ class NetworkInfectionModel(Model):
                 self.G_2.add_edge(tmp_agent_1, tmp_agent_2)
 
         ### Add each agent to the schedule of the simulation
-        for agent in agent_list:
-            self.schedule.add(agent)
+        for i, ag in enumerate(agent_list):
+            self.schedule.add(ag)
 
         ### Let's collect several things from the agent and model classes
         self.datacollector = DataCollector(
             agent_reporters={
                 "Obesity_status": "obesity_status",
+                "Obesity_prob": "obesity_prob",
                 "Ethnicity": "ethnicity"
             },
             model_reporters={
@@ -456,12 +473,14 @@ class NetworkInfectionModel(Model):
         self.datacollector.collect(self)
         self.schedule.step()
 
+        
+
 
 
 ### Let's run it!
 
 # How many agents to add?
-N=1000
+N=500
 # How many years to cover
 steps=62
 
@@ -476,9 +495,33 @@ model_data = model.datacollector.model_vars
 
 
 
+
 #######################################################################################
 #######################################################################################
 ####### ANALYSIS #######
+
+### Plot probability of obesity for an individual agent over time
+agent_id = 222
+
+age = np.arange(start = 18, stop = 80, step = 1)
+prob = agent_data[agent_data['AgentID'] == agent_id]['Obesity_prob']
+
+plt.figure(figsize=(12, 8))
+ax = plt.subplot(111)  
+ax.spines["top"].set_visible(False)  
+ax.spines["right"].set_visible(False)  
+plt.plot(age, prob)
+plt.ylim(0, 1.0)
+plt.title(f'Probability of Obesity for Agent {agent_id}')
+plt.xlabel('Age in birth cohort')
+plt.ylabel('Probability of obesity')
+plt.savefig(expanduser("~/Desktop/single_agent_prob.png"), dpi = 300)
+
+
+
+
+
+
 
 
 ### Plot prevalence of obesity in this birth-cohort over time
@@ -512,22 +555,22 @@ age = np.arange(start = 18, stop = 80, step = 1)
 
 tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.WHITE]
 prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 11, 3)
+new_y = savgol_filter(prev, 21, 3)
 plt.plot(age, new_y, color = '#ff7f0e')
 
 tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.HISPANIC]
 prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 11, 3)
+new_y = savgol_filter(prev, 21, 3)
 plt.plot(age, new_y, color = '#1f77b4')
 
 tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.BLACK]
 prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 11, 3)
+new_y = savgol_filter(prev, 21, 3)
 plt.plot(age, new_y, color = '#2ca02c')
 
 tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.ASIAN]
 prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 11, 3)
+new_y = savgol_filter(prev, 21, 3)
 plt.plot(age, new_y, color = '#e377c2')
 
 plt.ylim(0, 1.0)
