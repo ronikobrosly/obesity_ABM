@@ -322,11 +322,15 @@ class MyAgent(Agent):
             agent for agent in G_2_neighbors if self.model.G.nodes[agent]['obesity_status'] == OBESE.YES
         ]
 
-        if obese_neighbors_1:
-            update_prob *= 1.07
+        # if obese_neighbors_1:
+        #     update_prob *= 1.07
 
-        if obese_neighbors_2:
-            update_prob *= 1.07
+        # if obese_neighbors_2:
+        #     update_prob *= 1.07
+
+        num_obese_conn = len(list(set(obese_neighbors_1 + obese_neighbors_2)))
+
+        update_prob *= 1.015**num_obese_conn
 
         self.obesity_prob = update_prob
 
@@ -380,7 +384,7 @@ class NetworkInfectionModel(Model):
         node_count = tqdm([i for i in range(self.num_nodes)])
         for i in node_count:
 
-            node_count.set_description("Creating education and social class-based social network")
+            node_count.set_description("Creating education and income-based social network")
 
             # Add the first 2 nodes (0, 1) without any edges
             if i < 2:
@@ -559,19 +563,54 @@ class NetworkInfectionModel(Model):
 
 ########### Let's run it! ###########
 
-# How many agents to add? (default is 1000)
-N = 500
-# How many years to cover? (default is 62 years)
-steps = 62
-# Should we try an intervention? The following values are accepted: [None, "random_10_perc", "best_connected_10_perc"] (default is None)
+## No intervention
+
+N = 500 # How many agents to add? (default is 1000)
+steps = 62 # How many years to cover? (default is 62 years)
+intervention = None
+
+none_model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
+for i in range(steps):
+    none_model.step()
+
+none_agent_data = none_model.datacollector.get_agent_vars_dataframe().reset_index()
+none_model_data = none_model.datacollector.model_vars
+
+
+
+
+## Random 10% Intervention
+
+N = 500 # How many agents to add? (default is 1000)
+steps = 62 # How many years to cover? (default is 62 years)
 intervention = "random_10_perc"
 
-model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
+rand_model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
 for i in range(steps):
-    model.step()
+    rand_model.step()
 
-agent_data = model.datacollector.get_agent_vars_dataframe().reset_index()
-model_data = model.datacollector.model_vars
+rand_agent_data = rand_model.datacollector.get_agent_vars_dataframe().reset_index()
+rand_model_data = rand_model.datacollector.model_vars
+
+
+
+## Best-connected 10% intervention
+
+N = 500 # How many agents to add? (default is 1000)
+steps = 62 # How many years to cover? (default is 62 years)
+intervention = "best_connected_10_perc"
+
+conn_model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
+for i in range(steps):
+    conn_model.step()
+
+conn_agent_data = conn_model.datacollector.get_agent_vars_dataframe().reset_index()
+conn_model_data = conn_model.datacollector.model_vars
+
+
+
+
+
 
 
 
