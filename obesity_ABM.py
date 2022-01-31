@@ -106,8 +106,11 @@ def NHANES_pred(age, male, ethnicity, edu, low_income):
 
 class MyAgent(Agent):
     """ An agent in an obesity model."""
-    def __init__(self, unique_id, model, seed = 9901):
+    def __init__(self, unique_id, intervention, model, seed = 9901):
         super().__init__(unique_id, model)
+
+        ### Set whether we're doing an intervention here
+        self.intervention = intervention
 
         ### Set age
         self.age = STARTING_AGE
@@ -331,7 +334,17 @@ class MyAgent(Agent):
         if update_prob >= 1.0:
             update_prob = 0.95
 
-        self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[update_prob, 1 - update_prob])
+
+        # Obesity override goes into effect here
+        if isinstance(self.intervention, type(None)):
+            self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[update_prob, 1 - update_prob])
+
+        elif self.intervention in ["random_10_perc", "best_connected_10_perc"] :
+            if (self.model.G.nodes[self.graph_1_id]['override'] == 1) or (self.model.G_2.nodes[self.graph_1_id]['override'] == 1):
+                self.obesity_status = OBESE.NO
+            else:
+                self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[update_prob, 1 - update_prob])
+
 
         # Update the node in the two graphs to reflect new obesity status
         nx.set_node_attributes(self.model.G, {self.graph_1_id:{'obesity_status': self.obesity_status}})
@@ -347,11 +360,14 @@ class MyAgent(Agent):
 class NetworkInfectionModel(Model):
     """A model for infection spread."""
     
-    def __init__(self, N=1000, graph_m = 2, seed = 9901):
+    def __init__(self, N=1000, graph_m = 2, intervention = None, seed = 9901):
         
         self.num_nodes = N  
+
+        self.intervention = intervention
         
         self.schedule = RandomActivation(self)
+        
         self.running = True
 
         self.G = nx.empty_graph()
@@ -368,14 +384,14 @@ class NetworkInfectionModel(Model):
 
             # Add the first 2 nodes (0, 1) without any edges
             if i < 2:
-                ag = MyAgent(i, self)
+                ag = MyAgent(i, intervention, self)
                 ag.graph_1_id = i
                 self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
                 agent_list.append(ag)
             
             # After adding the third node, force connections between nodes 1 and 2 to 0
             elif i == 2:
-                ag = MyAgent(i, self)
+                ag = MyAgent(i, intervention, self)
                 ag.graph_1_id = i
                 self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
                 agent_list.append(ag)
@@ -384,7 +400,7 @@ class NetworkInfectionModel(Model):
 
             # For the first 15% of the new nodes, build a standard Barabási–Albert network, without regard to node attributes
             elif 2 < i < (self.num_nodes * 0.15):
-                ag = MyAgent(i, self)
+                ag = MyAgent(i, intervention, self)
                 ag.graph_1_id = i
                 self.G.add_node(i, ethnicity = ag.ethnicity, education = ag.education, income = ag.income, obesity_status = ag.obesity_status)
                 agent_list.append(ag)
@@ -402,7 +418,7 @@ class NetworkInfectionModel(Model):
             # with a probability of connecting to existing agents with the same ethnicity that is proportional 
             # to the number of connections that that agent already possessed
             elif (self.num_nodes * 0.15) <= i < (self.num_nodes * 0.75):
-                ag = MyAgent(i, self)
+                ag = MyAgent(i, intervention, self)
                 ag.graph_1_id = i
                 agent_list.append(ag)
               
@@ -424,7 +440,7 @@ class NetworkInfectionModel(Model):
             # with a probability of connecting to existing agents with the same ethnicity and social class that is proportional 
             # to the number of connections that that agent already possessed
             elif i >= (self.num_nodes * 0.75):
-                ag = MyAgent(i, self)
+                ag = MyAgent(i, intervention, self)
                 ag.graph_1_id = i
                 agent_list.append(ag)
 
@@ -466,6 +482,51 @@ class NetworkInfectionModel(Model):
             if result:
                 self.G_2.add_edge(tmp_agent_1, tmp_agent_2)
 
+
+        # Find what number of nodes represents 5%
+        perc_num = round(self.num_nodes * 0.05)
+
+        if self.intervention == "random_10_perc":
+
+            random_nodes_G1 = random.choices(self.G.nodes(), k = perc_num)
+            random_nodes_G2 = random.choices(self.G_2.nodes(), k = perc_num)
+
+            # Assign overrides
+            for i, node in enumerate(self.G.nodes):
+                if i in random_nodes_G1:
+                    self.G.nodes[i]["override"] = 1
+                else:
+                    self.G.nodes[i]["override"] = 0
+
+            for i, node in enumerate(self.G_2.nodes):
+                if i in random_nodes_G2:
+                    self.G_2.nodes[i]["override"] = 1
+                else:
+                    self.G_2.nodes[i]["override"] = 0
+
+        elif self.intervention == "best_connected_10_perc":
+
+            ### Identify the most connected nodes in the graph
+            G1_degrees = pd.Series({i: self.G.degree[a] for i, a in enumerate(self.G.nodes)}).sort_values(ascending = False)
+            G2_degrees = pd.Series({i: self.G_2.degree[a] for i, a in enumerate(self.G_2.nodes)}).sort_values(ascending = False)
+
+            # Get node ids for the most connected people
+            well_connect_nodes_G1 = G1_degrees.head(perc_num).index.values
+            well_connect_nodes_G2 = G2_degrees.head(perc_num).index.values
+
+            # Assign overrides
+            for i, node in enumerate(self.G.nodes):
+                if i in well_connect_nodes_G1:
+                    self.G.nodes[i]["override"] = 1
+                else:
+                    self.G.nodes[i]["override"] = 0
+
+            for i, node in enumerate(self.G_2.nodes):
+                if i in well_connect_nodes_G2:
+                    self.G_2.nodes[i]["override"] = 1
+                else:
+                    self.G_2.nodes[i]["override"] = 0
+
         ### Add each agent to the schedule of the simulation
         for i, ag in enumerate(agent_list):
             self.schedule.add(ag)
@@ -498,20 +559,23 @@ class NetworkInfectionModel(Model):
 
 ########### Let's run it! ###########
 
-# How many agents to add?
-N=500
-# How many years to cover
-steps=62
-# For some reason I can't collect updated network graphs, so doing manual approach instead of using DataCollector
-g1_list = []
+# How many agents to add? (default is 1000)
+N = 500
+# How many years to cover? (default is 62 years)
+steps = 62
+# Should we try an intervention? The following values are accepted: [None, "random_10_perc", "best_connected_10_perc"] (default is None)
+intervention = "random_10_perc"
 
-
-model = NetworkInfectionModel(N, graph_m = 2, seed = 9901)
+model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
 for i in range(steps):
     model.step()
 
 agent_data = model.datacollector.get_agent_vars_dataframe().reset_index()
 model_data = model.datacollector.model_vars
+
+
+
+
 
 
 
