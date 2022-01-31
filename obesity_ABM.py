@@ -14,11 +14,19 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import networkx as nx
+import networkx.algorithms.isomorphism as iso
+from networkx.algorithms.isomorphism import is_isomorphic
 import numpy as np
 import pandas as pd
 from scipy.interpolate import BSpline, make_interp_spline
 from scipy.signal import savgol_filter
 from tqdm import tqdm
+
+
+
+
+random.seed(9901)
+np.random.seed(9901)
 
 
 class GENDER(enum.IntEnum):
@@ -79,11 +87,11 @@ def NHANES_pred(age, male, ethnicity, edu, low_income):
     elif 25 <= age <= 34:
         p = (1 / (1 + math.exp(-( -1.250510112227838 + 0.284513492553897*male +  -0.106884428592779*hispanic + 0.440639490318372*black +  -1.10989108410785*asian + 0.93342498743326*ls_hs + 0.645048730830948*hs + -0.418999919136112*low_income +  0.233184658178101*male*hispanic + -1.03926745828485*male*black +  0.294450513571392*male*asian + 0.795149019639188*hispanic*low_income +  -0.163579587469932*black*low_income + -0.951472883705997*asian*low_income ))))
     elif 35 <= age <= 44:
-        p = (1 / (1 + math.exp(-( -0.674941644905153 + 0.0969952917007317*male +  0.483559801324601*hispanic + 0.60591286535956*black +  -0.934835608962707*asian + 0.146468928501282*ls_hs + 0.646923521999472*hs + -0.123129892523741*low_income +  -0.11442851436543*male*hispanic + -0.678670688661983*male*black +  -0.334458166386686*male*asian + -0.246825395038133*hispanic*low_income +  -0.0765757691718646*black*low_income + -0.371966575825664*asian*low_income ))))
+        p = (1 / (1 + math.exp(-( -0.674941644905153 + 0.0969952917007317*male +  0.483559801324601*hispanic + 0.60591286535956*black +  -0.934835608962707*asian + 0.146468928501282*ls_hs + 0.646923521999472*hs + -0.123129892523741*low_income +  -0.19442851436543*male*hispanic + -0.678670688661983*male*black +  -0.334458166386686*male*asian + -0.06825395038133*hispanic*low_income +  -0.0765757691718646*black*low_income + -0.371966575825664*asian*low_income ))))
     elif 45 <= age <= 54:
         p = (1 / (1 + math.exp(-( -0.102989247082001 + -0.336404350027203*male +  0.10639118927315*hispanic + 0.909668962331198*black +  -1.67606277312526*asian + 0.107257149717273*ls_hs + 0.213417369991959*hs + -0.118376306434112*low_income +  0.204154600468121*male*hispanic + -0.134545505111619*male*black +  0.620093135764366*male*asian + 0.34930807288916*hispanic*low_income +  -0.201480463397565*black*low_income + 0.420232973505079*asian*low_income ))))    
     elif 55 <= age <= 64:
-        p = (1 / (1 + math.exp(-( 0.0410298783766218 + -0.000282839245683864*male +  -0.125015773541335*hispanic + 0.535578996430555*black +  -1.93211344172358*asian + 0.157921171423239*ls_hs + 0.0392505882298882*hs + -0.0194247525014116*low_income +  -0.280484576402743*male*hispanic + -0.863405888490444*male*black +  0.246259036524443*male*asian + -0.173786518710037*hispanic*low_income +  -0.0974535632246011*black*low_income + 0.287679145584893*asian*low_income ))))
+        p = (1 / (1 + math.exp(-( 0.0410298783766218 + -0.000282839245683864*male +  0.15015773541335*hispanic + 0.535578996430555*black +  -1.93211344172358*asian + 0.157921171423239*ls_hs + 0.0392505882298882*hs + -0.0194247525014116*low_income +  -0.180484576402743*male*hispanic + -0.863405888490444*male*black +  0.246259036524443*male*asian + -0.073786518710037*hispanic*low_income +  -0.0974535632246011*black*low_income + 0.287679145584893*asian*low_income ))))
     elif 65 <= age <= 74:
         p = (1 / (1 + math.exp(-( -0.330002027435108 + 0.038532494720161*male +  0.798420646912457*hispanic + 0.721235546788376*black +  -1.89416154590602*asian + -0.514964239754382*ls_hs + 0.410716017842812*hs + -0.143059890281068*low_income +  -0.477828565732246*male*hispanic + -1.00148134398669*male*black +  -1.10601002826727*male*asian + 0.258604580853212*hispanic*low_income +  -0.00988221015165987*black*low_income + 1.53255330071962*asian*low_income ))))
     elif age >= 75:
@@ -98,7 +106,7 @@ def NHANES_pred(age, male, ethnicity, edu, low_income):
 
 class MyAgent(Agent):
     """ An agent in an obesity model."""
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model, seed = 9901):
         super().__init__(unique_id, model)
 
         ### Set age
@@ -295,11 +303,11 @@ class MyAgent(Agent):
         elif self.neighborhood == NEIGHBORHOOD.UPPER_MINORITY:
             update_prob *= 0.97
         elif self.neighborhood == NEIGHBORHOOD.LOWER_MAJORITY:
-            update_prob *= 1.14
+            update_prob *= 1.1
         elif self.neighborhood == NEIGHBORHOOD.LOWER_MINORITY:
-            update_prob *= 1.22
+            update_prob *= 1.12
 
-        ### Determine if anyone connected to agent in network is obese, update prob accordingly
+        # Determine if anyone connected to agent in network is obese, update prob accordingly
         G_1_neighbors = self.model.G.neighbors(self.graph_1_id)
         G_2_neighbors = self.model.G_2.neighbors(self.graph_1_id)
 
@@ -311,12 +319,18 @@ class MyAgent(Agent):
             agent for agent in G_2_neighbors if self.model.G.nodes[agent]['obesity_status'] == OBESE.YES
         ]
 
-        if obese_neighbors_1 or obese_neighbors_1:
-            update_prob *= 1.1
+        if obese_neighbors_1:
+            update_prob *= 1.07
+
+        if obese_neighbors_2:
+            update_prob *= 1.07
 
         self.obesity_prob = update_prob
 
         # Make final determine about obesity in this particular time step
+        if update_prob >= 1.0:
+            update_prob = 0.95
+
         self.obesity_status = np.random.choice([OBESE.YES, OBESE.NO], p=[update_prob, 1 - update_prob])
 
         # Update the node in the two graphs to reflect new obesity status
@@ -326,14 +340,14 @@ class MyAgent(Agent):
     def step(self):
         self.update()
 
-        
+
 
 
 
 class NetworkInfectionModel(Model):
     """A model for infection spread."""
     
-    def __init__(self, N=1000, graph_m = 2):
+    def __init__(self, N=1000, graph_m = 2, seed = 9901):
         
         self.num_nodes = N  
         
@@ -461,7 +475,10 @@ class NetworkInfectionModel(Model):
             agent_reporters={
                 "Obesity_status": "obesity_status",
                 "Obesity_prob": "obesity_prob",
-                "Ethnicity": "ethnicity"
+                "Age": "age",
+                "Ethnicity": "ethnicity",
+                "Education": "education",
+                "Income": "income",
             },
             model_reporters={
                 "Graph_1": "G", 
@@ -477,14 +494,19 @@ class NetworkInfectionModel(Model):
 
 
 
-### Let's run it!
+
+
+########### Let's run it! ###########
 
 # How many agents to add?
 N=500
 # How many years to cover
 steps=62
+# For some reason I can't collect updated network graphs, so doing manual approach instead of using DataCollector
+g1_list = []
 
-model = NetworkInfectionModel(N)
+
+model = NetworkInfectionModel(N, graph_m = 2, seed = 9901)
 for i in range(steps):
     model.step()
 
@@ -496,21 +518,45 @@ model_data = model.datacollector.model_vars
 
 
 
+
+
+
+
 #######################################################################################
 #######################################################################################
 ####### ANALYSIS #######
 
+
+### Let's ensure that the networks are actually updating
+
+# obese_agent_list_1 = [agent for agent in g1_list[0].nodes if g1_list[0].nodes[agent]['obesity_status'] == OBESE.YES]
+# obese_agent_list_2 = [agent for agent in g1_list[5].nodes if g1_list[10].nodes[agent]['obesity_status'] == OBESE.YES]
+
+# print(obese_agent_list_1 == obese_agent_list_2)
+
+# obe_match = iso.numerical_node_match("obesity_status", 0)
+# print(is_isomorphic(g1_list[0], g1_list[5], node_match = obe_match))
+
+
+
+
+
+
+
+
 ### Plot probability of obesity for an individual agent over time
-agent_id = 222
+agent_id = 18
 
 age = np.arange(start = 18, stop = 80, step = 1)
 prob = agent_data[agent_data['AgentID'] == agent_id]['Obesity_prob']
+
+new_y = savgol_filter(prob, 7, 3)
 
 plt.figure(figsize=(12, 8))
 ax = plt.subplot(111)  
 ax.spines["top"].set_visible(False)  
 ax.spines["right"].set_visible(False)  
-plt.plot(age, prob)
+plt.plot(age, new_y)
 plt.ylim(0, 1.0)
 plt.title(f'Probability of Obesity for Agent {agent_id}')
 plt.xlabel('Age in birth cohort')
