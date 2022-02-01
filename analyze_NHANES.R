@@ -71,9 +71,7 @@ p = 1 / (1 + exp(-(-0.59278 + 0.15686*MALE + 0.18525*HISPANIC + 0.63385*BLACK + 
 # important to do. If you don't do this and just restrict it in a different way
 # your estimates won't have correct SEs.
 
-ageDesign <- subset(nhanesDesign, age > 17 &age < 80)
-
-
+df <- read.csv("~/Desktop/transformed_NHANES.csv")
 
 nhanesDesign <- svydesign(
   id = ~SDMVPSU,
@@ -83,11 +81,30 @@ nhanesDesign <- svydesign(
   data = df
 )
 
-#svyglm(
-#  formula = OBESE ~ MALE + HISPANIC + BLACK + ASIAN + LS_HS + HS + LOW_INCOME
-#    + MALE:HISPANIC + MALE:BLACK + MALE:ASIAN + 
-#    HISPANIC:LOW_INCOME + BLACK:LOW_INCOME + ASIAN:LOW_INCOME, 
-#  design = nhanesDesign, 
-#  family = "binomial", 
-#  data = age_df
-#)
+
+ageDesign <- subset(nhanesDesign, AGE >= 18 & AGE <= 24)
+svymean(~OBESE, ageDesign)
+
+ageDesign <- subset(nhanesDesign, AGE >= 25 & AGE <= 34)
+svymean(~OBESE, ageDesign)
+
+ageDesign <- subset(nhanesDesign, AGE >= 35 & AGE <= 44)
+svymean(~OBESE, ageDesign)
+
+ageDesign <- subset(nhanesDesign, AGE >= 45 & AGE <= 54)
+svymean(~OBESE, ageDesign)
+
+ageDesign <- subset(nhanesDesign, AGE >= 55 & AGE <= 64)
+svymean(~OBESE, ageDesign)
+
+ageDesign <- subset(nhanesDesign, AGE >= 65 & AGE <= 74)
+svymean(~OBESE, ageDesign)
+
+ageDesign <- subset(nhanesDesign, AGE >= 75)
+svymean(~OBESE, ageDesign)
+
+
+
+
+
+

@@ -25,10 +25,6 @@ from tqdm import tqdm
 
 
 
-random.seed(9901)
-np.random.seed(9901)
-
-
 class GENDER(enum.IntEnum):
     MALE = 0
     FEMALE = 1
@@ -99,6 +95,216 @@ def NHANES_pred(age, male, ethnicity, edu, low_income):
 
     return p
             
+
+
+
+
+
+
+def plot_single_prob(data, type):
+    """
+    Plot probability of obesity for an individual agent over time
+    """
+    agent_id = 18
+
+    age = np.arange(start = 18, stop = 80, step = 1)
+    prob = data[data['AgentID'] == agent_id]['Obesity_prob']
+    new_y = savgol_filter(prob, 7, 3)
+
+    plt.figure(figsize=(12, 8))
+    ax = plt.subplot(111)  
+    ax.spines["top"].set_visible(False)  
+    ax.spines["right"].set_visible(False)  
+    plt.plot(age, new_y)
+    plt.ylim(0, 1.0)
+    plt.title(f'Probability of Obesity for Agent {agent_id}')
+    plt.xlabel('Age in birth cohort')
+    plt.ylabel('Probability of obesity')
+    plt.savefig(expanduser(f"~/Desktop/plots/{type}_single_agent_prob.png"), dpi = 300)
+
+
+
+
+
+def plot_prevalence(data, type):
+    """
+    Plot prevalence of obesity in this birth-cohort over time
+    """
+    age = np.arange(start = 18, stop = 80, step = 1)
+    prev = data.groupby('Step')['Obesity_status'].mean().values
+
+    new_y = savgol_filter(prev, 21, 3)
+
+    plt.figure(figsize=(12, 8))
+    ax = plt.subplot(111)  
+    ax.spines["top"].set_visible(False)  
+    ax.spines["right"].set_visible(False)  
+    plt.plot(age, new_y)
+    plt.ylim(0, 1.0)
+    plt.title('')
+    plt.xlabel('Age in birth cohort')
+    plt.ylabel('Prevalence of obesity')
+    plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_by_age.png"), dpi = 300)
+
+
+
+
+
+
+def plot_treatment_prevalences(none_data, random_data, conn_data):
+    """
+    Plot prevalence of obesity in this birth-cohort over time
+    """
+    plt.figure(figsize=(12, 8))
+    ax = plt.subplot(111)  
+    ax.spines["top"].set_visible(False)  
+    ax.spines["right"].set_visible(False)  
+
+    age = np.arange(start = 18, stop = 80, step = 1)
+
+    prev = none_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#ff7f0e')
+
+    prev = random_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#1f77b4')
+
+    prev = conn_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#2ca02c')
+
+    plt.ylim(0, 1.0)
+    plt.title('')
+    plt.xlabel('Age in birth cohort')
+    plt.ylabel('Prevalence of obesity')
+
+    legend_elements = [
+        Patch(facecolor='#ff7f0e', label='No treatment'),
+        Patch(facecolor='#1f77b4', label='Random 10%'),
+        Patch(facecolor='#2ca02c', label='Most connected 10%'),
+    ]
+    plt.legend(handles=legend_elements)
+    
+    plt.savefig(expanduser(f"~/Desktop/plots/treatment_prevalence_by_age.png"), dpi = 300)
+
+
+
+
+
+
+
+def plot_prev_by_race(data, type):
+    """
+    Plot prevalence of obesity by ethnicity
+    """
+
+    plt.figure(figsize=(12, 8))
+    ax = plt.subplot(111)  
+    ax.spines["top"].set_visible(False)  
+    ax.spines["right"].set_visible(False)  
+
+    age = np.arange(start = 18, stop = 80, step = 1)
+
+    tmp_data = data[data['Ethnicity'] == ETHNICITY.WHITE]
+    prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#ff7f0e')
+
+    tmp_data = data[data['Ethnicity'] == ETHNICITY.HISPANIC]
+    prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#1f77b4')
+
+    tmp_data = data[data['Ethnicity'] == ETHNICITY.BLACK]
+    prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#2ca02c')
+
+    tmp_data = data[data['Ethnicity'] == ETHNICITY.ASIAN]
+    prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    plt.plot(age, new_y, color = '#e377c2')
+
+    plt.ylim(0, 1.0)
+    plt.title('')
+    plt.xlabel('Age in birth cohort')
+    plt.ylabel('Prevalence of obesity')
+
+    legend_elements = [
+        Patch(facecolor='#ff7f0e', label='White'),
+        Patch(facecolor='#1f77b4', label='Hispanic'),
+        Patch(facecolor='#2ca02c', label='Black'),
+        Patch(facecolor='#e377c2', label='Asian')
+    ]
+    plt.legend(handles=legend_elements)
+    plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_by_age_by_race.png"), dpi = 300)
+
+
+
+
+
+def plot_edu_income_network(network, type):
+    """
+    Plot education and income network clusters
+    """
+    pos = nx.spring_layout(network, scale=20)
+    color_state_map = {0: '#ff7f0e', 1: '#1f77b4', 2: '#2ca02c', 3: '#e377c2'}
+
+    plt.figure(figsize=(12, 8))
+    nx.draw(
+        network, 
+        pos=pos, 
+        with_labels=False, 
+        node_color=[color_state_map[node[1]['ethnicity']] for node in network.nodes(data=True)], 
+        edge_color="dimgrey",
+        width=0.5,
+        node_size=65,
+        font_color='white'
+    )
+    legend_elements = [
+        Patch(facecolor='#ff7f0e', label='White'),
+        Patch(facecolor='#1f77b4', label='Hispanic'),
+        Patch(facecolor='#2ca02c', label='Black'),
+        Patch(facecolor='#e377c2', label='Asian')
+    ]
+    plt.legend(handles=legend_elements)
+    plt.savefig(expanduser(f"~/Desktop/plots/{type}_edu_class_network.png"), dpi = 300)
+
+
+
+
+
+def plot_neighborhood_network(network, type):
+    """
+    Plot the 4 neighorhood network clusters (G_2)
+    """
+    pos = nx.spring_layout(network, scale=20)
+    color_state_map = {0: '#ff7f0e', 1: '#1f77b4', 2: '#2ca02c', 3: '#e377c2'}
+
+    plt.figure(figsize=(12, 8))
+    nx.draw(
+        network, 
+        pos=pos, 
+        with_labels=False, 
+        node_color=[color_state_map[node[1]['neighborhood']] for node in network.nodes(data=True)], 
+        edge_color="dimgrey",
+        width=0.5,
+        node_size=65,
+        font_color='white'
+    )
+    legend_elements = [
+        Patch(facecolor='#ff7f0e', label='Upper Class, White Majority'),
+        Patch(facecolor='#1f77b4', label='Upper Class, Non-White Majority'),
+        Patch(facecolor='#2ca02c', label='Lower Class, White Majority'),
+        Patch(facecolor='#e377c2', label='Lower Class, Non-White Majority')
+    ]
+    plt.legend(handles=legend_elements)
+    plt.savefig(expanduser(f"~/Desktop/plots/{type}_neighborhood_network.png"), dpi = 300)
+
+
+
+
 
 
 
@@ -330,7 +536,7 @@ class MyAgent(Agent):
 
         num_obese_conn = len(list(set(obese_neighbors_1 + obese_neighbors_2)))
 
-        update_prob *= 1.015**num_obese_conn
+        update_prob *= 1.01**num_obese_conn
 
         self.obesity_prob = update_prob
 
@@ -492,8 +698,8 @@ class NetworkInfectionModel(Model):
 
         if self.intervention == "random_10_perc":
 
-            random_nodes_G1 = random.choices(self.G.nodes(), k = perc_num)
-            random_nodes_G2 = random.choices(self.G_2.nodes(), k = perc_num)
+            random_nodes_G1 = random.choices(list(self.G), k = perc_num)
+            random_nodes_G2 = random.choices(list(self.G_2), k = perc_num)
 
             # Assign overrides
             for i, node in enumerate(self.G.nodes):
@@ -545,10 +751,10 @@ class NetworkInfectionModel(Model):
                 "Education": "education",
                 "Income": "income",
             },
-            model_reporters={
-                "Graph_1": "G", 
-                "Graph_2": "G_2"
-            }
+            #model_reporters={
+            #    "Graph_1": "G", 
+            #    "Graph_2": "G_2"
+            #}
         )
 
     def step(self):
@@ -564,70 +770,96 @@ class NetworkInfectionModel(Model):
 ########### Let's run it! ###########
 
 ## No intervention
-
-N = 500 # How many agents to add? (default is 1000)
+random.seed(9901)
+np.random.seed(9901)
+N = 1000 # How many agents to add? (default is 1000)
 steps = 62 # How many years to cover? (default is 62 years)
 intervention = None
 
+print("\nRunning simulation with no intervention...")
 none_model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
+pbar = tqdm(total=steps)
+pbar.set_description(f"Simulating {steps} years")
 for i in range(steps):
+    pbar.update(1)
     none_model.step()
+pbar.close()
+print("Done!")
 
 none_agent_data = none_model.datacollector.get_agent_vars_dataframe().reset_index()
 none_model_data = none_model.datacollector.model_vars
+
+plot_single_prob(none_agent_data, "none")
+plot_prevalence(none_agent_data, "none")
+plot_prev_by_race(none_agent_data, "none")
+plot_edu_income_network(none_model.G, "none")
+plot_neighborhood_network(none_model.G_2, "none")
 
 
 
 
 ## Random 10% Intervention
-
-N = 500 # How many agents to add? (default is 1000)
+random.seed(9901)
+np.random.seed(9901)
+N = 1000 # How many agents to add? (default is 1000)
 steps = 62 # How many years to cover? (default is 62 years)
 intervention = "random_10_perc"
 
+print("\nRunning simulation with random intervention...")
 rand_model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
+pbar = tqdm(total=steps)
+pbar.set_description(f"Simulating {steps} years")
 for i in range(steps):
+    pbar.update(1)
     rand_model.step()
+pbar.close()
+print("Done!")
 
 rand_agent_data = rand_model.datacollector.get_agent_vars_dataframe().reset_index()
 rand_model_data = rand_model.datacollector.model_vars
 
+plot_single_prob(rand_agent_data, "random")
+plot_prevalence(rand_agent_data, "random")
+plot_prev_by_race(rand_agent_data, "random")
+plot_edu_income_network(rand_model.G, "random")
+plot_neighborhood_network(rand_model.G_2, "random")
+
+
 
 
 ## Best-connected 10% intervention
-
-N = 500 # How many agents to add? (default is 1000)
+random.seed(9901)
+np.random.seed(9901)
+N = 1000 # How many agents to add? (default is 1000)
 steps = 62 # How many years to cover? (default is 62 years)
 intervention = "best_connected_10_perc"
 
+print("\nRunning simulation with targetted intervention (most connected agents)...")
 conn_model = NetworkInfectionModel(N, graph_m = 2, seed = 9901, intervention = intervention)
+pbar = tqdm(total=steps)
+pbar.set_description(f"Simulating {steps} years")
 for i in range(steps):
+    pbar.update(1)
     conn_model.step()
+pbar.close()
+print("Done!")
 
 conn_agent_data = conn_model.datacollector.get_agent_vars_dataframe().reset_index()
 conn_model_data = conn_model.datacollector.model_vars
 
+plot_single_prob(conn_agent_data, "conn")
+plot_prevalence(conn_agent_data, "conn")
+plot_prev_by_race(conn_agent_data, "conn")
+plot_edu_income_network(conn_model.G, "conn")
+plot_neighborhood_network(conn_model.G_2, "conn")
 
 
 
+## Comparing treatments
+plot_treatment_prevalences(none_agent_data, rand_agent_data, conn_agent_data)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#######################################################################################
-#######################################################################################
-####### ANALYSIS #######
 
 
 ### Let's ensure that the networks are actually updating
@@ -639,169 +871,6 @@ conn_model_data = conn_model.datacollector.model_vars
 
 # obe_match = iso.numerical_node_match("obesity_status", 0)
 # print(is_isomorphic(g1_list[0], g1_list[5], node_match = obe_match))
-
-
-
-
-
-
-
-
-### Plot probability of obesity for an individual agent over time
-agent_id = 18
-
-age = np.arange(start = 18, stop = 80, step = 1)
-prob = agent_data[agent_data['AgentID'] == agent_id]['Obesity_prob']
-
-new_y = savgol_filter(prob, 7, 3)
-
-plt.figure(figsize=(12, 8))
-ax = plt.subplot(111)  
-ax.spines["top"].set_visible(False)  
-ax.spines["right"].set_visible(False)  
-plt.plot(age, new_y)
-plt.ylim(0, 1.0)
-plt.title(f'Probability of Obesity for Agent {agent_id}')
-plt.xlabel('Age in birth cohort')
-plt.ylabel('Probability of obesity')
-plt.savefig(expanduser("~/Desktop/single_agent_prob.png"), dpi = 300)
-
-
-
-
-
-
-
-
-### Plot prevalence of obesity in this birth-cohort over time
-age = np.arange(start = 18, stop = 80, step = 1)
-prev = agent_data.groupby('Step')['Obesity_status'].mean().values
-
-new_y = savgol_filter(prev, 21, 3)
-
-plt.figure(figsize=(12, 8))
-ax = plt.subplot(111)  
-ax.spines["top"].set_visible(False)  
-ax.spines["right"].set_visible(False)  
-plt.plot(age, new_y)
-plt.ylim(0, 1.0)
-plt.title('')
-plt.xlabel('Age in birth cohort')
-plt.ylabel('Prevalence of obesity')
-plt.savefig(expanduser("~/Desktop/prevalence_by_age.png"), dpi = 300)
-
-
-
-
-
-### Plot prevalence of obesity by ethnicity
-plt.figure(figsize=(12, 8))
-ax = plt.subplot(111)  
-ax.spines["top"].set_visible(False)  
-ax.spines["right"].set_visible(False)  
-
-age = np.arange(start = 18, stop = 80, step = 1)
-
-tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.WHITE]
-prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 21, 3)
-plt.plot(age, new_y, color = '#ff7f0e')
-
-tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.HISPANIC]
-prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 21, 3)
-plt.plot(age, new_y, color = '#1f77b4')
-
-tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.BLACK]
-prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 21, 3)
-plt.plot(age, new_y, color = '#2ca02c')
-
-tmp_data = agent_data[agent_data['Ethnicity'] == ETHNICITY.ASIAN]
-prev = tmp_data.groupby('Step')['Obesity_status'].mean().values
-new_y = savgol_filter(prev, 21, 3)
-plt.plot(age, new_y, color = '#e377c2')
-
-plt.ylim(0, 1.0)
-plt.title('')
-plt.xlabel('Age in birth cohort')
-plt.ylabel('Prevalence of obesity')
-
-legend_elements = [
-    Patch(facecolor='#ff7f0e', label='White'),
-    Patch(facecolor='#1f77b4', label='Hispanic'),
-    Patch(facecolor='#2ca02c', label='Black'),
-    Patch(facecolor='#e377c2', label='Asian')
-]
-plt.legend(handles=legend_elements)
-plt.savefig(expanduser("~/Desktop/prevalence_by_age_by_race.png"), dpi = 300)
-
-
-
-
-
-
-
-
-
-
-### Plot education and social class network cluster (G)
-test_G = model_data['Graph_1'][0]
-pos = nx.spring_layout(test_G, scale=20)
-color_state_map = {0: '#ff7f0e', 1: '#1f77b4', 2: '#2ca02c', 3: '#e377c2'}
-
-plt.figure(figsize=(12, 8))
-nx.draw(
-    test_G, 
-    pos=pos, 
-    with_labels=False, 
-    node_color=[color_state_map[node[1]['ethnicity']] for node in test_G.nodes(data=True)], 
-    edge_color="dimgrey",
-    width=0.5,
-    node_size=65,
-    font_color='white'
-)
-legend_elements = [
-    Patch(facecolor='#ff7f0e', label='White'),
-    Patch(facecolor='#1f77b4', label='Hispanic'),
-    Patch(facecolor='#2ca02c', label='Black'),
-    Patch(facecolor='#e377c2', label='Asian')
-]
-plt.legend(handles=legend_elements)
-plt.savefig(expanduser("~/Desktop/edu_class_network.png"), dpi = 300)
-
-
-
-
-
-### Plot the 4 neighorhood network clusters (G_2)
-test_G = model_data['Graph_2'][0]
-pos = nx.spring_layout(test_G, scale=20)
-color_state_map = {0: '#ff7f0e', 1: '#1f77b4', 2: '#2ca02c', 3: '#e377c2'}
-
-plt.figure(figsize=(12, 8))
-nx.draw(
-    test_G, 
-    pos=pos, 
-    with_labels=False, 
-    node_color=[color_state_map[node[1]['neighborhood']] for node in test_G.nodes(data=True)], 
-    edge_color="dimgrey",
-    width=0.5,
-    node_size=65,
-    font_color='white'
-)
-legend_elements = [
-    Patch(facecolor='#ff7f0e', label='Upper Class, White Majority'),
-    Patch(facecolor='#1f77b4', label='Upper Class, Non-White Majority'),
-    Patch(facecolor='#2ca02c', label='Lower Class, White Majority'),
-    Patch(facecolor='#e377c2', label='Lower Class, Non-White Majority')
-]
-plt.legend(handles=legend_elements)
-plt.savefig(expanduser("~/Desktop/neighborhood_network.png"), dpi = 300)
-
-
-
-
 
 
 
