@@ -82,6 +82,16 @@ nhanesDesign <- svydesign(
 )
 
 
+nat_data <- data.frame(year= numeric(0), mean= numeric(0), se = numeric(0))
+
+for (val in ((3:15)*5))
+{
+  ageDesign <- subset(nhanesDesign, AGE >= val & AGE <= (val + 5))
+  print(val + 2.5)
+  print(svymean(~OBESE, ageDesign))
+  print("")
+}
+
 ageDesign <- subset(nhanesDesign, AGE >= 18 & AGE <= 24)
 svymean(~OBESE, ageDesign)
 

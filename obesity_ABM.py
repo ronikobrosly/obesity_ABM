@@ -25,6 +25,11 @@ from tqdm import tqdm
 
 
 
+
+
+
+
+
 class GENDER(enum.IntEnum):
     MALE = 0
     FEMALE = 1
@@ -145,6 +150,64 @@ def plot_prevalence(data, type):
     plt.xlabel('Age in birth cohort')
     plt.ylabel('Prevalence of obesity')
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_by_age.png"), dpi = 300)
+
+
+
+
+def plot_prevalence_with_nat_prev(data, type):
+    """
+    Plot prevalence of obesity in this birth-cohort over time
+    """
+    plt.figure(figsize=(12, 8))
+
+    age = np.arange(start = 18, stop = 80, step = 1)
+    prev = data.groupby('Step')['Obesity_status'].mean().values
+    new_y = savgol_filter(prev, 21, 3)
+    ax = plt.subplot(111)  
+    plt.plot(age, new_y, color = "#1f77b4")
+
+    age = np.array([17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5, 52.5, 57.5, 62.5, 67.5, 72.5, 77.5])
+    mean_prev = np.array([0.291, 0.364, 0.401, 0.438, 0.433, 0.454, 0.432, 0.427, 0.484, 0.473, 0.419, 0.459, 0.385])
+    se = np.array([0.086, 0.048, 0.049, 0.035, 0.031, 0.034, 0.047, 0.039, 0.024, 0.055, 0.057, 0.047, 0.031])
+    upper = mean_prev + se*1.96
+    lower = mean_prev - se*1.96
+
+    z = np.polyfit(age, mean_prev, 3)
+    f = np.poly1d(z)
+    x_new = np.linspace(18, 80, 50)
+    y_new = f(x_new)
+
+    plt.plot(x_new, y_new, color = "#ff7f0e")
+
+    z = np.polyfit(age, upper, 3)
+    f = np.poly1d(z)
+    x_new = np.linspace(18, 80, 50)
+    y_new = f(x_new)
+
+    plt.plot(x_new, y_new, color = "#ff7f0e", linestyle='dashed')
+
+    z = np.polyfit(age, lower, 3)
+    f = np.poly1d(z)
+    x_new = np.linspace(18, 80, 50)
+    y_new = f(x_new)
+
+    plt.plot(x_new, y_new, color = "#ff7f0e", linestyle='dashed')
+
+    ax.spines["top"].set_visible(False)  
+    ax.spines["right"].set_visible(False)  
+    plt.ylim(0, 1.0)
+    plt.title('')
+    plt.xlabel('Age')
+    plt.ylabel('Prevalence of obesity')
+
+    legend_elements = [
+        Patch(facecolor='#1f77b4', label='Simulation'),
+        Patch(facecolor='#ff7f0e', label="Nat'l-representative sample"),
+        Patch(facecolor='#ff7f0e', label="Nat'l sample confidence bounds"),
+    ]
+    plt.legend(handles=legend_elements)
+
+    plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_plus_nat_by_age.png"), dpi = 300)
 
 
 
@@ -791,6 +854,7 @@ none_model_data = none_model.datacollector.model_vars
 
 plot_single_prob(none_agent_data, "none")
 plot_prevalence(none_agent_data, "none")
+plot_prevalence_with_nat_prev(none_agent_data, "none")
 plot_prev_by_race(none_agent_data, "none")
 plot_edu_income_network(none_model.G, "none")
 plot_neighborhood_network(none_model.G_2, "none")
@@ -820,6 +884,7 @@ rand_model_data = rand_model.datacollector.model_vars
 
 plot_single_prob(rand_agent_data, "random")
 plot_prevalence(rand_agent_data, "random")
+plot_prevalence_with_nat_prev(none_agent_data, "none")
 plot_prev_by_race(rand_agent_data, "random")
 plot_edu_income_network(rand_model.G, "random")
 plot_neighborhood_network(rand_model.G_2, "random")
@@ -849,6 +914,7 @@ conn_model_data = conn_model.datacollector.model_vars
 
 plot_single_prob(conn_agent_data, "conn")
 plot_prevalence(conn_agent_data, "conn")
+plot_prevalence_with_nat_prev(none_agent_data, "none")
 plot_prev_by_race(conn_agent_data, "conn")
 plot_edu_income_network(conn_model.G, "conn")
 plot_neighborhood_network(conn_model.G_2, "conn")
