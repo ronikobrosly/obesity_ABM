@@ -167,8 +167,8 @@ def plot_prevalence_with_nat_prev(data, type):
     plt.plot(age, new_y, color = "#1f77b4")
 
     age = np.array([17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5, 52.5, 57.5, 62.5, 67.5, 72.5, 77.5])
-    mean_prev = np.array([0.291, 0.364, 0.401, 0.438, 0.433, 0.454, 0.432, 0.427, 0.484, 0.473, 0.419, 0.459, 0.385])
-    se = np.array([0.086, 0.048, 0.049, 0.035, 0.031, 0.034, 0.047, 0.039, 0.024, 0.055, 0.057, 0.047, 0.031])
+    mean_prev = np.array([0.27, 0.32, 0.35, 0.42, 0.45, 0.49, 0.48, 0.491, 0.46, 0.474, 0.43, 0.44, 0.35])
+    se = np.array([0.0554, 0.0291, 0.03, 0.0241, 0.0247, 0.029, 0.0325, 0.0306, 0.0272, 0.0358, 0.0363, 0.0332, 0.0236])
     upper = mean_prev + se*1.96
     lower = mean_prev - se*1.96
 
@@ -203,7 +203,6 @@ def plot_prevalence_with_nat_prev(data, type):
     legend_elements = [
         Patch(facecolor='#1f77b4', label='Simulation'),
         Patch(facecolor='#ff7f0e', label="Nat'l-representative sample"),
-        Patch(facecolor='#ff7f0e', label="Nat'l sample confidence bounds"),
     ]
     plt.legend(handles=legend_elements)
 

@@ -72,17 +72,18 @@ p = 1 / (1 + exp(-(-0.59278 + 0.15686*MALE + 0.18525*HISPANIC + 0.63385*BLACK + 
 # your estimates won't have correct SEs.
 
 df <- read.csv("~/Desktop/transformed_NHANES.csv")
+df2 <- read.csv("~/Desktop/transformed_NHANES_2.csv")
+new_df <- rbind(df, df2)
+new_df$WTMEC2YR <- new_df$WTMEC2YR / 2
 
 nhanesDesign <- svydesign(
   id = ~SDMVPSU,
   strata  = ~SDMVSTRA,
   weights = ~WTMEC2YR,
   nest = TRUE,
-  data = df
+  data = new_df
 )
 
-
-nat_data <- data.frame(year= numeric(0), mean= numeric(0), se = numeric(0))
 
 for (val in ((3:15)*5))
 {

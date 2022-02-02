@@ -16,7 +16,6 @@ exam_df = exam_df[['SEQN', 'BMXBMI']]
 merged_df = demo_df.merge(exam_df, how = "left", on = "SEQN")
 
 
-
 ### FIRST PASS AT CODING
 
 # SEX
