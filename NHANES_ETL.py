@@ -45,8 +45,6 @@ merged_df['LOW_INCOME'] = np.nan
 # merged_df['LOW_INCOME'][merged_df['INDFMIN2'].isin([8,9,10,14,15])] = 0
 merged_df['LOW_INCOME'] = np.where(merged_df['INDFMPIR'] < merged_df['INDFMPIR'].median(), 1, 0)
 
-
-
 # OBESITY
 merged_df['OBESE'] = np.nan
 merged_df['OBESE'][merged_df['BMXBMI'] < 30] = 0
@@ -54,7 +52,6 @@ merged_df['OBESE'][merged_df['BMXBMI'] >= 30] = 1
 
 merged_df2 = merged_df[['SEQN', 'MALE', 'AGE', 'RACE', 'EDU', 'LOW_INCOME', 'OBESE', 'WTMEC2YR', 'SDMVPSU', 'SDMVSTRA']]
 merged_df2 = merged_df2.dropna()
-
 
 
 #### PREP FOR LOG REG

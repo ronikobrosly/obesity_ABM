@@ -26,10 +26,6 @@ from tqdm import tqdm
 plt.rcParams.update({'font.size': 14})
 
 
-
-
-
-
 class GENDER(enum.IntEnum):
     MALE = 0
     FEMALE = 1
@@ -101,11 +97,6 @@ def NHANES_pred(age, male, ethnicity, edu, low_income):
     return p
             
 
-
-
-
-
-
 def plot_single_prob(data, type):
     """
     Plot probability of obesity for an individual agent over time
@@ -128,9 +119,6 @@ def plot_single_prob(data, type):
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_single_agent_prob.png"), dpi = 300)
 
 
-
-
-
 def plot_prevalence(data, type):
     """
     Plot prevalence of obesity in this birth-cohort over time
@@ -150,8 +138,6 @@ def plot_prevalence(data, type):
     plt.xlabel('Age in birth cohort')
     plt.ylabel('Prevalence of obesity')
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_by_age.png"), dpi = 300)
-
-
 
 
 def plot_prevalence_with_nat_prev(data, type):
@@ -209,10 +195,6 @@ def plot_prevalence_with_nat_prev(data, type):
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_plus_nat_by_age.png"), dpi = 300)
 
 
-
-
-
-
 def plot_treatment_prevalences(none_data, random_data, conn_data):
     """
     Plot prevalence of obesity in this birth-cohort over time
@@ -249,11 +231,6 @@ def plot_treatment_prevalences(none_data, random_data, conn_data):
     plt.legend(handles=legend_elements)
     
     plt.savefig(expanduser(f"~/Desktop/plots/treatment_prevalence_by_age.png"), dpi = 300)
-
-
-
-
-
 
 
 def plot_prev_by_race(data, type):
@@ -303,9 +280,6 @@ def plot_prev_by_race(data, type):
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_prevalence_by_age_by_race.png"), dpi = 300)
 
 
-
-
-
 def plot_edu_income_network(network, type):
     """
     Plot education and income network clusters
@@ -334,9 +308,6 @@ def plot_edu_income_network(network, type):
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_edu_class_network.png"), dpi = 300)
 
 
-
-
-
 def plot_neighborhood_network(network, type):
     """
     Plot the 4 neighorhood network clusters (G_2)
@@ -363,13 +334,6 @@ def plot_neighborhood_network(network, type):
     ]
     plt.legend(handles=legend_elements)
     plt.savefig(expanduser(f"~/Desktop/plots/{type}_neighborhood_network.png"), dpi = 300)
-
-
-
-
-
-
-
 
 
 class MyAgent(Agent):
@@ -626,9 +590,6 @@ class MyAgent(Agent):
         self.update()
 
 
-
-
-
 class NetworkInfectionModel(Model):
     """A model for infection spread."""
     
@@ -813,10 +774,6 @@ class NetworkInfectionModel(Model):
                 "Education": "education",
                 "Income": "income",
             },
-            #model_reporters={
-            #    "Graph_1": "G", 
-            #    "Graph_2": "G_2"
-            #}
         )
 
     def step(self):
@@ -922,234 +879,4 @@ plot_neighborhood_network(conn_model.G_2, "conn")
 
 ## Comparing treatments
 plot_treatment_prevalences(none_agent_data, rand_agent_data, conn_agent_data)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### 100 runs of each model to get standard errors
-
-
-## No intervention
-N = 500 # How many agents to add? (default is 1000)
-steps = 62 # How many years to cover? (default is 62 years)
-intervention = None
-indep_runs = 100 # How many times to run simulation?
-
-run_results = []
-
-pbar = tqdm(total=indep_runs)
-pbar.set_description(f"Running sim {indep_runs} times")
-for i in range(indep_runs):
-    none_model = NetworkInfectionModel(N, graph_m = 2, intervention = intervention)
-    for i in range(steps):
-        none_model.step()
-
-    run_results.append(none_model.datacollector.get_agent_vars_dataframe().reset_index())
-    pbar.update(1)
-    
-pbar.close()
-print("Done!")
-
-
-
-
-## Random 10%
-N = 500 # How many agents to add? (default is 1000)
-steps = 62 # How many years to cover? (default is 62 years)
-intervention = "random_10_perc"
-indep_runs = 100 # How many times to run simulation?
-
-run_results = []
-
-pbar = tqdm(total=indep_runs)
-pbar.set_description(f"Running sim {indep_runs} times")
-for i in range(indep_runs):
-    rand_model = NetworkInfectionModel(N, graph_m = 2, intervention = intervention)
-    for i in range(steps):
-        rand_model.step()
-
-    run_results.append(rand_model.datacollector.get_agent_vars_dataframe().reset_index())
-    pbar.update(1)
-    
-pbar.close()
-print("Done!")
-
-
-
-## Connected 10%
-N = 500 # How many agents to add? (default is 1000)
-steps = 62 # How many years to cover? (default is 62 years)
-intervention = "best_connected_10_perc"
-indep_runs = 100 # How many times to run simulation?
-
-run_results = []
-
-pbar = tqdm(total=indep_runs)
-pbar.set_description(f"Running sim {indep_runs} times")
-for i in range(indep_runs):
-    conn_model = NetworkInfectionModel(N, graph_m = 2, intervention = intervention)
-    for i in range(steps):
-        conn_model.step()
-
-    run_results.append(conn_model.datacollector.get_agent_vars_dataframe().reset_index())
-    pbar.update(1)
-    
-pbar.close()
-print("Done!")
-
-
-
-
-
-
-
-
-
-
-
-plt.figure(figsize=(12, 8))
-ax = plt.subplot(111)  
-ax.spines["top"].set_visible(False)  
-ax.spines["right"].set_visible(False)  
-
-age = np.arange(start = 18, stop = 80, step = 1)
-
-# No treatment first
-# none_means_by_step = []
-# for i in range(steps):
-#     tmp_list = []
-#     for dataset in run_results:
-#         tmp_list.append(dataset[dataset['Step'] == i]['Obesity_status'].mean())
-#     none_means_by_step.append(np.array(tmp_list).mean())
-
-# none_error_by_step = []
-# for i in range(steps):
-#     tmp_list = []
-#     for dataset in run_results:
-#         tmp_list.append(dataset[dataset['Step'] == i]['Obesity_status'].mean())
-#     none_error_by_step.append( (np.array(tmp_list).std() / np.sqrt(indep_runs))*1.96 )
-
-# none_means_by_step = np.array(none_means_by_step)
-# none_error_by_step = np.array(none_error_by_step)
-# upper = none_means_by_step + none_error_by_step
-# lower = none_means_by_step - none_error_by_step
-
-df = pd.read_csv("~/Desktop/no_intervention_batch_results.csv")
-
-new_mean = savgol_filter(df['mean'], 21, 3)
-new_upper = savgol_filter(df['lower'], 21, 3)
-new_lower = savgol_filter(df['upper'], 21, 3)
-
-plt.plot(age, new_mean, color = '#ff7f0e')
-plt.plot(age, new_upper, color = '#ff7f0e', linestyle='dashed')
-plt.plot(age, new_lower, color = '#ff7f0e', linestyle='dashed')
-
-
-
-# 10% Random next
-# rand_means_by_step = []
-# for i in range(steps):
-#     tmp_list = []
-#     for dataset in run_results:
-#         tmp_list.append(dataset[dataset['Step'] == i]['Obesity_status'].mean())
-#     rand_means_by_step.append(np.array(tmp_list).mean())
-
-# rand_error_by_step = []
-# for i in range(steps):
-#     tmp_list = []
-#     for dataset in run_results:
-#         tmp_list.append(dataset[dataset['Step'] == i]['Obesity_status'].mean())
-#     rand_error_by_step.append( (np.array(tmp_list).std() / np.sqrt(indep_runs))*1.96 )
-
-# rand_means_by_step = np.array(rand_means_by_step)
-# rand_error_by_step = np.array(rand_error_by_step)
-# upper = rand_means_by_step + rand_error_by_step
-# lower = rand_means_by_step - rand_error_by_step
-
-# pd.DataFrame({'mean': rand_means_by_step, 'lower': lower, 'upper': upper}).to_csv("~/Desktop/random_batch_results.csv", index = False)
-
-df = pd.read_csv("~/Desktop/random_batch_results.csv")
-
-new_mean = savgol_filter(df['mean'], 21, 3)
-new_upper = savgol_filter(df['lower'], 21, 3)
-new_lower = savgol_filter(df['upper'], 21, 3)
-
-plt.plot(age, new_mean, color = '#1f77b4')
-plt.plot(age, new_upper, color = '#1f77b4', linestyle='dashed')
-plt.plot(age, new_lower, color = '#1f77b4', linestyle='dashed')
-
-
-
-# 10% most connected 
-# conn_means_by_step = []
-# for i in range(steps):
-#     tmp_list = []
-#     for dataset in run_results:
-#         tmp_list.append(dataset[dataset['Step'] == i]['Obesity_status'].mean())
-#     conn_means_by_step.append(np.array(tmp_list).mean())
-
-# conn_error_by_step = []
-# for i in range(steps):
-#     tmp_list = []
-#     for dataset in run_results:
-#         tmp_list.append(dataset[dataset['Step'] == i]['Obesity_status'].mean())
-#     conn_error_by_step.append( (np.array(tmp_list).std() / np.sqrt(indep_runs))*1.96 )
-
-# conn_means_by_step = np.array(conn_means_by_step)
-# conn_error_by_step = np.array(conn_error_by_step)
-# upper = conn_means_by_step + conn_error_by_step
-# lower = conn_means_by_step - conn_error_by_step
-
-# pd.DataFrame({'mean': conn_means_by_step, 'lower': lower, 'upper': upper}).to_csv("~/Desktop/conn_batch_results.csv", index = False)
-
-df = pd.read_csv("~/Desktop/conn_batch_results.csv")
-
-new_mean = savgol_filter(df['mean'], 21, 3)
-new_upper = savgol_filter(df['lower'], 21, 3)
-new_lower = savgol_filter(df['upper'], 21, 3)
-
-plt.plot(age, new_mean, color = '#2ca02c')
-plt.plot(age, new_upper, color = '#2ca02c', linestyle='dashed')
-plt.plot(age, new_lower, color = '#2ca02c', linestyle='dashed')
-
-legend_elements = [
-        Patch(facecolor='#ff7f0e', label='No treatment'),
-        Patch(facecolor='#1f77b4', label='Random 10% treatment'),
-        Patch(facecolor='#2ca02c', label='Most connected 10% treatment'),
-    ]
-plt.legend(handles=legend_elements)
-
-plt.ylim(0, 1.0)
-plt.title('')
-plt.xlabel('Age in birth cohort')
-plt.ylabel('Prevalence of obesity')
-plt.savefig(expanduser(f"~/Desktop/plots/final_treatment.png"), dpi = 300)
-
-
-
-
-
-
-
-### Let's ensure that the networks are actually updating
-
-# obese_agent_list_1 = [agent for agent in g1_list[0].nodes if g1_list[0].nodes[agent]['obesity_status'] == OBESE.YES]
-# obese_agent_list_2 = [agent for agent in g1_list[5].nodes if g1_list[10].nodes[agent]['obesity_status'] == OBESE.YES]
-
-# print(obese_agent_list_1 == obese_agent_list_2)
-
-# obe_match = iso.numerical_node_match("obesity_status", 0)
-# print(is_isomorphic(g1_list[0], g1_list[5], node_match = obe_match))
-
-
 
